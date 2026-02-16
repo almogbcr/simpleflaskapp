@@ -21,4 +21,3 @@ def increment():
     global counter
     counter += 1
     return {"counter": counter}
-
