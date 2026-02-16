@@ -2,53 +2,54 @@ name: Build and Update GitOps
 
 on:
   push:
-    branches:
-      - dev
-      - main
+    branches: [ dev, main ]
 
 jobs:
   build-and-update:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout app repo
-      uses: actions/checkout@v4
+      - name: Checkout app repo
+        uses: actions/checkout@v4
 
-    - name: Set IMAGE TAG
-      id: vars
-      run: echo "SHA_TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+      - name: Set IMAGE TAG
+        id: vars
+        run: echo "SHA_TAG=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
-    - name: Login to DockerHub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Build and Push Image
-      run: |
-        docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/simpleflaskapp:${{ steps.vars.outputs.SHA_TAG }} .
-        docker push ${{ secrets.DOCKERHUB_USERNAME }}/simpleflaskapp:${{ steps.vars.outputs.SHA_TAG }}
+      - name: Build and Push Image
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/simpleflaskapp:${{ steps.vars.outputs.SHA_TAG }} .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/simpleflaskapp:${{ steps.vars.outputs.SHA_TAG }}
 
-    - name: Clone GitOps Repo
-      run: |
-        git clone https://x-access-token:${{ secrets.GITOPS_REPO_TOKEN }}@github.com/almogbcr/helm-gitops-repo.git
-        cd helm-gitops-repo
+      # Checkout GitOps repo into a folder
+      - name: Checkout GitOps repo
+        uses: actions/checkout@v4
+        with:
+          repository: almogbcr/helm-gitops-repo
+          token: ${{ secrets.GITOPS_REPO_TOKEN }}
+          path: helm-gitops-repo
 
-    - name: Update Helm values file
-      run: |
-        cd helm-gitops-repo
+      - name: Update Helm values file
+        working-directory: helm-gitops-repo
+        run: |
+          if [ "${{ github.ref_name }}" = "dev" ]; then
+            VALUES_FILE="charts/myapp/values-dev.yaml"
+          else
+            VALUES_FILE="charts/myapp/values-prod.yaml"
+          fi
 
-        if [ "${{ github.ref_name }}" = "dev" ]; then
-          VALUES_FILE="charts/myapp/values-dev.yaml"
-        else
-          VALUES_FILE="charts/myapp/values-prod.yaml"
-        fi
+          # Replace line: tag: "..."
+          sed -i "s/^tag:.*/tag: \"${{ steps.vars.outputs.SHA_TAG }}\"/" "$VALUES_FILE"
 
-        sed -i "s/tag:.*/tag: \"${{ steps.vars.outputs.SHA_TAG }}\"/" $VALUES_FILE
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
-        git config user.name "github-actions"
-        git config user.email "github-actions@github.com"
-
-        git add $VALUES_FILE
-        git commit -m "Update image tag to ${{ steps.vars.outputs.SHA_TAG }}"
-        git push
+          git add "$VALUES_FILE"
+          git commit -m "Update image tag to ${{ steps.vars.outputs.SHA_TAG }}" || exit 0
+          git push
