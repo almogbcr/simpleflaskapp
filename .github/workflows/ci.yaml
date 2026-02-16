@@ -41,9 +41,9 @@ jobs:
           set -e
 
           if [ "${{ github.ref_name }}" = "dev" ]; then
-            VALUES_FILE="charts/myapp/values-dev.yaml"
+            VALUES_FILE="charts/simpleflaskapp/values-dev.yaml"
           else
-            VALUES_FILE="charts/myapp/values-prod.yaml"
+            VALUES_FILE="charts/simpleflaskapp/values-prod.yaml"
           fi
 
           echo "Updating: $VALUES_FILE"
