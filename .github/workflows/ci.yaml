@@ -36,30 +36,30 @@ jobs:
           path: helm-gitops-repo
 
       - name: Update Helm values file
-  working-directory: helm-gitops-repo
-  run: |
-    set -e
+        working-directory: helm-gitops-repo
+        run: |
+          set -e
 
-    if [ "${{ github.ref_name }}" = "dev" ]; then
-      VALUES_FILE="charts/myapp/values-dev.yaml"
-    else
-      VALUES_FILE="charts/myapp/values-prod.yaml"
-    fi
+          if [ "${{ github.ref_name }}" = "dev" ]; then
+            VALUES_FILE="charts/myapp/values-dev.yaml"
+          else
+            VALUES_FILE="charts/myapp/values-prod.yaml"
+          fi
 
-    echo "Updating: $VALUES_FILE"
-    echo "---- BEFORE ----"
-    cat "$VALUES_FILE"
+          echo "Updating: $VALUES_FILE"
+          echo "---- BEFORE ----"
+          cat "$VALUES_FILE"
 
-    sed -i -E "s/^([[:space:]]*tag:[[:space:]]*).*/\1\"${{ steps.vars.outputs.SHA_TAG }}\"/" "$VALUES_FILE"
+          sed -i -E "s/^([[:space:]]*tag:[[:space:]]*).*/\1\"${{ steps.vars.outputs.SHA_TAG }}\"/" "$VALUES_FILE"
 
-    echo "---- AFTER ----"
-    cat "$VALUES_FILE"
+          echo "---- AFTER ----"
+          cat "$VALUES_FILE"
 
-    git config user.name "github-actions"
-    git config user.email "github-actions@github.com"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
-    git add "$VALUES_FILE"
-    git status --porcelain
-    git commit -m "Update image tag to ${{ steps.vars.outputs.SHA_TAG }}" || exit 0
-    git push
+          git add "$VALUES_FILE"
+          git status --porcelain
+          git commit -m "Update image tag to ${{ steps.vars.outputs.SHA_TAG }}" || exit 0
+          git push
 
