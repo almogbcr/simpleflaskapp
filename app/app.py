@@ -17,6 +17,7 @@ HTML_INDEX = """
     <p>Host: {{ host }}</p>
     <p>Time: {{ time }}</p> 
     <p> Adding ArgoCD Project </p>
+    <h1> PROD </h1>
     
 </body>
 </html>
