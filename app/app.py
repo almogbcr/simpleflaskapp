@@ -16,7 +16,6 @@ HTML_INDEX = """
     <h1>Devops Rules 4ever✅</h1>
     <p>Host: {{ host }}</p>
     <p>Time: {{ time }}</p> 
-    <p> Adding ArgoCD Project By Almog</p>
     <p> Ingress </p>
     
 </body>
