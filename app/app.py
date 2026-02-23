@@ -13,7 +13,7 @@ HTML_INDEX = """
     <title>Simple Flask App</title>
 </head>
 <body>
-    <h1>Devops Rules ✅</h1>
+    <h1>Devops Rules 4ever✅</h1>
     <p>Host: {{ host }}</p>
     <p>Time: {{ time }}</p> 
     <p> Adding ArgoCD Project Almog</p>
