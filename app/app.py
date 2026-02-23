@@ -16,7 +16,7 @@ HTML_INDEX = """
     <h1>Simple Flask App Running ✅</h1>
     <p>Host: {{ host }}</p>
     <p>Time: {{ time }}</p> 
-    <p> Adding ArgoCD Project </p>
+    <p> Adding ArgoCD Project Almog</p>
     
 </body>
 </html>
