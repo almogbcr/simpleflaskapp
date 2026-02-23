@@ -16,7 +16,7 @@ HTML_INDEX = """
     <h1>Devops Rules 4ever✅</h1>
     <p>Host: {{ host }}</p>
     <p>Time: {{ time }}</p> 
-    <p> Ingress </p>
+    <p> dev </p>
     
 </body>
 </html>
