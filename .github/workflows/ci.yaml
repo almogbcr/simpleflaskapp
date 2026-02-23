@@ -6,6 +6,9 @@ on:
       - dev
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build-and-update:
     runs-on: ubuntu-latest
@@ -29,26 +32,92 @@ jobs:
         docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/simpleflaskapp:${{ steps.vars.outputs.SHA_TAG }} .
         docker push ${{ secrets.DOCKERHUB_USERNAME }}/simpleflaskapp:${{ steps.vars.outputs.SHA_TAG }}
 
-    - name: Clone GitOps Repo
+    - name: Update GitOps values and push to matching branch
+      shell: bash
+      env:
+        SHA_TAG: ${{ steps.vars.outputs.SHA_TAG }}
+        SOURCE_BRANCH: ${{ github.ref_name }}
+        GITOPS_TOKEN: ${{ secrets.GITOPS_REPO_TOKEN != '' && secrets.GITOPS_REPO_TOKEN || github.token }}
       run: |
-        git clone "https://x-access-token:${{ secrets.GITOPS_REPO_TOKEN }}@github.com/almogbcr/helm-gitops-demo.git"
-        cd helm-gitops-demo
+        set -euo pipefail
 
-    - name: Update Helm values file
-      run: |
-        cd helm-gitops-demo
+        case "$SOURCE_BRANCH" in
+          dev)
+            TARGET_BRANCH="dev"
+            VALUES_FILE="charts/myapp/values-dev.yaml"
+            ;;
+          main)
+            TARGET_BRANCH="main"
+            VALUES_FILE="charts/myapp/values-prod.yaml"
+            ;;
+          *)
+            echo "Source branch '$SOURCE_BRANCH' is not mapped for GitOps updates. Skipping."
+            exit 0
+            ;;
+        esac
 
-        if [ "${{ github.ref_name }}" = "dev" ]; then
-          VALUES_FILE="charts/myapp/values-dev.yaml"
-        else
-          VALUES_FILE="charts/myapp/values-prod.yaml"
+        echo "Source branch: $SOURCE_BRANCH"
+        echo "Target GitOps branch: $TARGET_BRANCH"
+        echo "Values file to update: $VALUES_FILE"
+        echo "New image tag: $SHA_TAG"
+
+        git clone --single-branch --branch "$TARGET_BRANCH" \
+          "https://x-access-token:${GITOPS_TOKEN}@github.com/almogbcr/helm-gitops-demo.git"
+        cd helm-gitops-demo
+        git checkout "$TARGET_BRANCH"
+
+        tmp_file="$(mktemp)"
+        awk -v new_tag="$SHA_TAG" '
+          function indent_len(s,   m) {
+            match(s, /^[ ]*/)
+            return RLENGTH
+          }
+          {
+            line = $0
+            curr_indent = indent_len(line)
+
+            if (line ~ /^[ ]*image:[ ]*$/) {
+              in_image = 1
+              image_indent = curr_indent
+              print line
+              next
+            }
+
+            if (in_image && line !~ /^[ ]*$/ && curr_indent <= image_indent) {
+              in_image = 0
+            }
+
+            if (in_image && line ~ /^[ ]*tag:[ ]*/) {
+              sub(/tag:[ ]*.*/, "tag: \"" new_tag "\"", line)
+              updated = 1
+            }
+
+            print line
+          }
+          END {
+            if (!updated) {
+              exit 2
+            }
+          }
+        ' "$VALUES_FILE" > "$tmp_file" || {
+          code=$?
+          rm -f "$tmp_file"
+          if [ "$code" -eq 2 ]; then
+            echo "Did not find image.tag in $VALUES_FILE"
+          fi
+          exit "$code"
+        }
+        mv "$tmp_file" "$VALUES_FILE"
+
+        if git diff --quiet -- "$VALUES_FILE"; then
+          echo "No changes detected in $VALUES_FILE. Nothing to commit."
+          exit 0
         fi
-
-        sed -i "s/tag:.*/tag: \"${{ steps.vars.outputs.SHA_TAG }}\"/" $VALUES_FILE
 
         git config user.name "github-actions"
         git config user.email "github-actions@github.com"
 
-        git add $VALUES_FILE
-        git commit -m "Update image tag to ${{ steps.vars.outputs.SHA_TAG }}"
-        git push
+        git add "$VALUES_FILE"
+        git commit -m "Update myapp image tag to ${SHA_TAG} (${TARGET_BRANCH})"
+        git push origin "$TARGET_BRANCH"
+        echo "Pushed update to branch '$TARGET_BRANCH' for file '$VALUES_FILE'."
