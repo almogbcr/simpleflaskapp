@@ -31,7 +31,7 @@ jobs:
 
     - name: Clone GitOps Repo
       run: |
-        git clone https://x-access-token:${{ secrets.GITOPS_REPO_TOKEN }}@github.com/almogbcr/helm-gitops-demo.git
+        git clone "https://x-access-token:${{ secrets.GITOPS_REPO_TOKEN }}@github.com/almogbcr/helm-gitops-demo.git"
         cd helm-gitops-demo
 
     - name: Update Helm values file
